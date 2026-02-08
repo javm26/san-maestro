@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>San Maestro - Gestión de Sanes</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { font-family: 'Inter', sans-serif; }
+        body { background: #0f172a; }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        .slide-in { animation: slideIn 0.3s ease-out; }
+        .scale-in { animation: scaleIn 0.3s ease-out; }
+
+        /* Glassmorphism cards */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(71, 85, 105, 0.4);
+        }
+        .glass-card:hover {
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: 0 8px 32px rgba(99, 102, 241, 0.1);
+        }
+
+        /* Modal overlay */
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+        }
+
+        /* Tier badges */
+        .tier-high { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .tier-mid { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+        .tier-low { background: linear-gradient(135deg, #22d3ee, #06b6d4); }
+
+        /* Status badges */
+        .status-paid { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+        .status-pending { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+        .status-partial { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+
+        /* Tab active */
+        .tab-active {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Input styling */
+        .input-field {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(71, 85, 105, 0.5);
+            color: #e2e8f0;
+            transition: all 0.2s;
+        }
+        .input-field:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+            outline: none;
+        }
+
+        /* Progress bar */
+        .progress-bar {
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        /* Nav button */
+        .nav-btn {
+            transition: all 0.2s;
+            position: relative;
+        }
+        .nav-btn.active {
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Toast notification */
+        .toast {
+            animation: slideInRight 0.4s ease-out, fadeOut 0.4s ease-in 2.6s;
+        }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+        /* Print styles */
+        @media print {
+            body { background: white !important; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-200">
+
+    <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2"></div>
+
+    <header class="sticky top-0 z-50 glass-card border-b border-slate-700/50 no-print">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                    $
+                </div>
+                <div class="hidden sm:block">
+                    <h1 class="text-xl font-bold gradient-text">San Maestro</h1>
+                    <p class="text-[10px] text-slate-500 -mt-0.5">Gestión de Sanes</p>
+                </div>
+            </div>
+            <nav class="flex gap-1 bg-slate-800/50 rounded-xl p-1 items-center">
+                <button onclick="navigateTo('dashboard')" class="nav-btn px-3 py-1.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white" data-nav="dashboard">
+                    📊 Panel
+                </button>
+                <button onclick="navigateTo('debtors')" class="nav-btn px-3 py-1.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white" data-nav="debtors">
+                    ⚠️ Deudores
+                </button>
+                <button onclick="navigateTo('history')" class="nav-btn px-3 py-1.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white" data-nav="history">
+                    📋 Historial
+                </button>
+                
+                <div class="w-px h-6 bg-slate-700 mx-1"></div>
+
+                <button id="btn-install" class="hidden nav-btn px-3 py-1.5 rounded-lg text-sm font-bold text-pink-400 hover:bg-pink-500/10 border border-transparent hover:border-pink-500/30 transition-all">
+                    📲 Instalar App
+                </button>
+
+                <button onclick="exportData()" class="nav-btn px-3 py-1.5 rounded-lg text-sm font-bold text-emerald-400 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/30 transition-all" title="Descargar copia de seguridad">
+                    💾 Guardar
+                </button>
+                <label class="nav-btn px-3 py-1.5 rounded-lg text-sm font-bold text-indigo-400 hover:bg-indigo-500/10 border border-transparent hover:border-indigo-500/30 transition-all cursor-pointer" title="Cargar copia de seguridad">
+                    📂 Cargar
+                    <input type="file" id="import-file" onchange="importData(this)" class="hidden" accept=".json">
+                </label>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+
+        <section id="view-dashboard" class="view">
+            <div id="global-stats" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 fade-in"></div>
+
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <h2 class="text-2xl font-bold text-white">Mis Sanes</h2>
+                <button onclick="openModal('modal-create-san')" class="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 transition-all hover:shadow-indigo-500/40 active:scale-95">
+                    + Crear Nuevo San
+                </button>
+            </div>
+
+            <div id="san-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+            <div id="empty-state" class="hidden text-center py-20">
+                <div class="text-6xl mb-4">🏦</div>
+                <h3 class="text-xl font-semibold text-slate-400 mb-2">No tienes Sanes activos</h3>
+                <p class="text-slate-500 mb-6">Crea tu primer San para comenzar a gestionar los aportes</p>
+                <button onclick="openModal('modal-create-san')" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-semibold transition-all">
+                    Crear mi primer San
+                </button>
+            </div>
+        </section>
+
+        <section id="view-san-detail" class="view hidden">
+            <div id="san-detail-content"></div>
+        </section>
+
+        <section id="view-debtors" class="view hidden">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <h2 class="text-2xl font-bold text-white">⚠️ Reporte de Deudores</h2>
+                <select id="debtor-san-filter" onchange="renderDebtors()" class="input-field px-4 py-2 rounded-xl text-sm">
+                    <option value="all">Todos los Sanes</option>
+                </select>
+            </div>
+            <div id="debtors-list"></div>
+        </section>
+
+        <section id="view-history" class="view hidden">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <h2 class="text-2xl font-bold text-white">📋 Historial de Pagos</h2>
+                <div class="flex gap-2">
+                    <select id="history-san-filter" onchange="renderHistory()" class="input-field px-4 py-2 rounded-xl text-sm">
+                        <option value="all">Todos los Sanes</option>
+                    </select>
+                    <select id="history-status-filter" onchange="renderHistory()" class="input-field px-4 py-2 rounded-xl text-sm">
+                        <option value="all">Todos</option>
+                        <option value="paid">Pagados</option>
+                        <option value="pending">Pendientes</option>
+                    </select>
+                </div>
+            </div>
+            <div id="history-table-container"></div>
+        </section>
+    </main>
+
+    <div id="modal-create-san" class="fixed inset-0 z-50 hidden items-center justify-center modal-overlay">
+        <div class="glass-card rounded-2xl w-full max-w-md mx-4 p-6 scale-in">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-white">Crear Nuevo San</h3>
+                <button onclick="closeModal('modal-create-san')" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <form id="form-create-san" onsubmit="handleCreateSan(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Nombre del San</label>
+                        <input type="text" id="san-name" required placeholder="Ej: San de la Oficina" class="input-field w-full px-4 py-2.5 rounded-xl">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Descripción (opcional)</label>
+                        <input type="text" id="san-desc" placeholder="Ej: Semanal, todos los viernes" class="input-field w-full px-4 py-2.5 rounded-xl">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-1">Duración (turnos)</label>
+                            <input type="number" id="san-duration" required min="2" max="52" placeholder="10" class="input-field w-full px-4 py-2.5 rounded-xl">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-1">Frecuencia</label>
+                            <select id="san-frequency" class="input-field w-full px-4 py-2.5 rounded-xl">
+                                <option value="semanal">Semanal</option>
+                                <option value="quincenal">Quincenal</option>
+                                <option value="mensual">Mensual</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Fecha de Inicio</label>
+                        <input type="date" id="san-start" required class="input-field w-full px-4 py-2.5 rounded-xl">
+                    </div>
+                </div>
+                <button type="submit" class="w-full mt-6 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-white font-bold shadow-lg transition-all active:scale-95">
+                    Crear San
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-add-participant" class="fixed inset-0 z-50 hidden items-center justify-center modal-overlay">
+        <div class="glass-card rounded-2xl w-full max-w-md mx-4 p-6 scale-in max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-white">Agregar Participante</h3>
+                <button onclick="closeModal('modal-add-participant')" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <form id="form-add-participant" onsubmit="handleAddParticipant(event)">
+                <input type="hidden" id="participant-san-id">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Nombre Completo</label>
+                        <input type="text" id="part-name" required placeholder="Ej: Juan Pérez" class="input-field w-full px-4 py-2.5 rounded-xl">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Teléfono</label>
+                        <input type="tel" id="part-phone" placeholder="Ej: 0414-1234567" class="input-field w-full px-4 py-2.5 rounded-xl">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">💰 Monto Total a Recibir ($)</label>
+                        <input type="number" id="part-total" required min="1" step="0.01" placeholder="Ej: 5000" class="input-field w-full px-4 py-2.5 rounded-xl text-lg font-semibold">
+                    </div>
+                    <div id="quota-preview" class="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-4 hidden">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-indigo-300">Cuota por Turno:</span>
+                            <span id="quota-calc-display" class="text-xl font-bold text-indigo-400">$0.00</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1" id="quota-calc-detail"></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Turno Asignado (#)</label>
+                        <select id="part-turn" required class="input-field w-full px-4 py-2.5 rounded-xl">
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="w-full mt-6 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-white font-bold shadow-lg transition-all active:scale-95">
+                    Agregar Participante
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-register-payment" class="fixed inset-0 z-50 hidden items-center justify-center modal-overlay">
+        <div class="glass-card rounded-2xl w-full max-w-md mx-4 p-6 scale-in max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-white">Registrar Pago</h3>
+                <button onclick="closeModal('modal-register-payment')" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <form id="form-register-payment" onsubmit="handleRegisterPayment(event)">
+                <input type="hidden" id="pay-san-id">
+                <input type="hidden" id="pay-participant-id">
+                <input type="hidden" id="pay-turn">
+                <div class="space-y-4">
+                    <div class="bg-slate-800/50 rounded-xl p-3">
+                        <p class="text-sm text-slate-400">Participante: <span id="pay-person-name" class="text-white font-semibold"></span></p>
+                        <p class="text-sm text-slate-400">Cuota Esperada: <span id="pay-expected-quota" class="text-emerald-400 font-bold"></span></p>
+                        <p class="text-sm text-slate-400">Turno: <span id="pay-turn-display" class="text-indigo-400 font-semibold"></span></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Monto Pagado ($)</label>
+                        <input type="number" id="pay-amount" required min="0.01" step="0.01" class="input-field w-full px-4 py-2.5 rounded-xl">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-1">Tasa BCV (Bs/$)</label>
+                            <input type="number" id="pay-rate" step="0.01" min="0" placeholder="Ej: 36.50" class="input-field w-full px-4 py-2.5 rounded-xl" oninput="calcVES()">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-1">Equivalente VES</label>
+                            <input type="text" id="pay-ves" readonly class="input-field w-full px-4 py-2.5 rounded-xl bg-slate-900/50 text-yellow-400">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Referencia / Comprobante</label>
+                        <input type="text" id="pay-ref" placeholder="Ej: Pago Móvil #12345" class="input-field w-full px-4 py-2.5 rounded-xl">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Fecha del Pago</label>
+                        <input type="date" id="pay-date" required class="input-field w-full px-4 py-2.5 rounded-xl">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Estado</label>
+                        <select id="pay-status" class="input-field w-full px-4 py-2.5 rounded-xl">
+                            <option value="paid">✅ Pagado</option>
+                            <option value="partial">⚠️ Pago Parcial</option>
+                            <option value="pending">❌ Pendiente</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="w-full mt-6 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 rounded-xl text-white font-bold shadow-lg transition-all active:scale-95">
+                    Registrar Pago
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-turn-detail" class="fixed inset-0 z-50 hidden items-center justify-center modal-overlay">
+        <div class="glass-card rounded-2xl w-full max-w-2xl mx-4 p-6 scale-in max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-white" id="turn-detail-title">Detalle del Turno</h3>
+                <button onclick="closeModal('modal-turn-detail')" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div id="turn-detail-content"></div>
+        </div>
+    </div>
+
+    <div id="modal-edit-san" class="fixed inset-0 z-50 hidden items-center justify-center modal-overlay">
+        <div class="glass-card rounded-2xl w-full max-w-md mx-4 p-6 scale-in">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-white">Editar San</h3>
+                <button onclick="closeModal('modal-edit-san')" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <form id="form-edit-san" onsubmit="handleEditSan(event)">
+                <input type="hidden" id="edit-san-id">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Nombre del San</label>
+                        <input type="text" id="edit-san-name" required class="input-field w-full px-4 py-2.5 rounded-xl">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Descripción</label>
+                        <input type="text" id="edit-san-desc" class="input-field w-full px-4 py-2.5 rounded-xl">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Frecuencia</label>
+                        <select id="edit-san-frequency" class="input-field w-full px-4 py-2.5 rounded-xl">
+                            <option value="semanal">Semanal</option>
+                            <option value="quincenal">Quincenal</option>
+                            <option value="mensual">Mensual</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex gap-3 mt-6">
+                    <button type="submit" class="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl text-white font-bold shadow-lg transition-all active:scale-95">
+                        Guardar Cambios
+                    </button>
+                    <button type="button" onclick="handleDeleteSan()" class="px-6 py-3 bg-red-600/20 border border-red-500/30 hover:bg-red-600/40 rounded-xl text-red-400 font-bold transition-all">
+                        Eliminar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-whatsapp" class="fixed inset-0 z-50 hidden items-center justify-center modal-overlay">
+        <div class="glass-card rounded-2xl w-full max-w-lg mx-4 p-6 scale-in max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-white">📱 Exportar a WhatsApp</h3>
+                <button onclick="closeModal('modal-whatsapp')" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div class="bg-slate-900/60 rounded-xl p-4 mb-4">
+                <pre id="whatsapp-text" class="text-sm text-slate-300 whitespace-pre-wrap font-mono"></pre>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="copyWhatsappText()" class="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-white font-semibold transition-all active:scale-95">
+                    📋 Copiar Texto
+                </button>
+                <button onclick="sendWhatsapp()" class="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-500 rounded-xl text-white font-semibold transition-all active:scale-95">
+                    📲 Abrir WhatsApp
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+    // ========================================================
+    // 1. DATA MODEL & STATE MANAGEMENT
+    // ========================================================
+
+    let state = {
+        sanes: [],
+        currentView: 'dashboard',
+        currentSanId: null,
+        currentTurn: 1
+    };
+
+    // ========================================================
+    // 2. PERSISTENCE (localStorage)
+    // ========================================================
+
+    function loadState() {
+        try {
+            const saved = localStorage.getItem('san_maestro_data');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                state.sanes = parsed.sanes || [];
+            }
+        } catch (e) {
+            console.error('Error cargando datos:', e);
+            state.sanes = [];
+        }
+    }
+
+    function saveState() {
+        try {
+            localStorage.setItem('san_maestro_data', JSON.stringify({ sanes: state.sanes }));
+        } catch (e) {
+            console.error('Error guardando datos:', e);
+            showToast('Error al guardar datos', 'error');
+        }
+    }
+
+    // ========================================================
+    // 3. UTILITY FUNCTIONS
+    // ========================================================
+
+    function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+    }
+
+    function fmtUSD(amount) {
+        return '$' + Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function fmtVES(amount) {
+        return 'Bs. ' + Number(amount).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function fmtDate(dateStr) {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr + 'T00:00:00');
+        return d.toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    function getTierClass(monto, maxMonto) {
+        if (!maxMonto || maxMonto === 0) return 'tier-low';
+        const ratio = monto / maxMonto;
+        if (ratio >= 0.7) return 'tier-high';
+        if (ratio >= 0.3) return 'tier-mid';
+        return 'tier-low';
+    }
+
+    function getTierLabel(monto, maxMonto) {
+        if (!maxMonto || maxMonto === 0) return '🟢';
+        const ratio = monto / maxMonto;
+        if (ratio >= 0.7) return '🔥';
+        if (ratio >= 0.3) return '💎';
+        return '🟢';
+    }
+
+    function calcTurnDate(san, turnNumber) {
+        const start = new Date(san.fecha_inicio + 'T00:00:00');
+        let daysOffset = 0;
+        const freq = san.frecuencia;
+        if (freq === 'semanal') daysOffset = (turnNumber - 1) * 7;
+        else if (freq === 'quincenal') daysOffset = (turnNumber - 1) * 15;
+        else if (freq === 'mensual') daysOffset = (turnNumber - 1) * 30;
+        const d = new Date(start);
+        d.setDate(d.getDate() + daysOffset);
+        return d.toISOString().split('T')[0];
+    }
+
+    function calcExpectedPot(san) {
+        return san.participantes.reduce((sum, p) => sum + p.cuota_calculada, 0);
+    }
+
+    function calcActualPot(san, turnNumber) {
+        return san.pagos
+            .filter(p => p.turno === turnNumber && (p.estado === 'paid' || p.estado === 'partial'))
+            .reduce((sum, p) => sum + p.monto_usd, 0);
+    }
+
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const colors = {
+            success: 'bg-emerald-600',
+            error: 'bg-red-600',
+            info: 'bg-indigo-600',
+            warning: 'bg-amber-600'
+        };
+        const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+        const toast = document.createElement('div');
+        toast.className = `toast ${colors[type]} text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 text-sm font-medium`;
+        toast.innerHTML = `<span>${icons[type]}</span> ${message}`;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    // ========================================================
+    // 4. MODAL MANAGEMENT
+    // ========================================================
+
+    function openModal(id) {
+        const modal = document.getElementById(id);
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        modal.onclick = (e) => {
+            if (e.target === modal) closeModal(id);
+        };
+    }
+
+    function closeModal(id) {
+        const modal = document.getElementById(id);
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    // ========================================================
+    // 5. NAVIGATION
+    // ========================================================
+
+    function navigateTo(view, sanId = null) {
+        state.currentView = view;
+        document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.classList.remove('active', 'text-white');
+            if(btn.dataset.nav) btn.classList.add('text-slate-400');
+        });
+        const activeBtn = document.querySelector(`[data-nav="${view === 'san-detail' ? 'dashboard' : view}"]`);
+        if (activeBtn) {
+            activeBtn.classList.add('active', 'text-white');
+            activeBtn.classList.remove('text-slate-400');
+        }
+
+        if (view === 'dashboard') {
+            document.getElementById('view-dashboard').classList.remove('hidden');
+            renderDashboard();
+        } else if (view === 'san-detail' && sanId) {
+            state.currentSanId = sanId;
+            document.getElementById('view-san-detail').classList.remove('hidden');
+            renderSanDetail(sanId);
+        } else if (view === 'debtors') {
+            document.getElementById('view-debtors').classList.remove('hidden');
+            populateFilters();
+            renderDebtors();
+        } else if (view === 'history') {
+            document.getElementById('view-history').classList.remove('hidden');
+            populateFilters();
+            renderHistory();
+        }
+    }
+
+    // ========================================================
+    // 6. RENDER: DASHBOARD
+    // ========================================================
+
+    function renderDashboard() {
+        renderGlobalStats();
+        renderSanCards();
+    }
+
+    function renderGlobalStats() {
+        const container = document.getElementById('global-stats');
+        const totalSanes = state.sanes.length;
+        const totalParticipants = state.sanes.reduce((s, san) => s + san.participantes.length, 0);
+        const totalRecaudado = state.sanes.reduce((s, san) => {
+            return s + san.pagos.filter(p => p.estado === 'paid' || p.estado === 'partial').reduce((ps, p) => ps + p.monto_usd, 0);
+        }, 0);
+        const totalPendiente = state.sanes.reduce((s, san) => {
+            let turnsPassed = getCurrentTurn(san);
+            let expectedTotal = san.participantes.reduce((ps, p) => ps + (p.cuota_calculada * turnsPassed), 0);
+            let actualPaid = san.pagos.filter(p => p.estado === 'paid' || p.estado === 'partial').reduce((ps, p) => ps + p.monto_usd, 0);
+            return s + Math.max(0, expectedTotal - actualPaid);
+        }, 0);
+
+        const stats = [
+            { label: 'Sanes Activos', value: totalSanes, icon: '🏦', color: 'from-indigo-500/20 to-purple-500/20', border: 'border-indigo-500/30' },
+            { label: 'Participantes', value: totalParticipants, icon: '👥', color: 'from-cyan-500/20 to-blue-500/20', border: 'border-cyan-500/30' },
+            { label: 'Total Recaudado', value: fmtUSD(totalRecaudado), icon: '💰', color: 'from-emerald-500/20 to-teal-500/20', border: 'border-emerald-500/30' },
+            { label: 'Pendiente', value: fmtUSD(totalPendiente), icon: '⏳', color: 'from-amber-500/20 to-orange-500/20', border: 'border-amber-500/30' }
+        ];
+
+        container.innerHTML = stats.map(s => `
+            <div class="glass-card rounded-xl p-4 bg-gradient-to-br ${s.color} border ${s.border} transition-all">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-lg">${s.icon}</span>
+                    <span class="text-xs font-medium text-slate-400">${s.label}</span>
+                </div>
+                <p class="text-xl font-bold text-white">${s.value}</p>
+            </div>
+        `).join('');
+    }
+
+    function getCurrentTurn(san) {
+        const now = new Date();
+        const start = new Date(san.fecha_inicio + 'T00:00:00');
+        if (now < start) return 0;
+        const diffDays = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+        let turnsPassed;
+        if (san.frecuencia === 'semanal') turnsPassed = Math.floor(diffDays / 7) + 1;
+        else if (san.frecuencia === 'quincenal') turnsPassed = Math.floor(diffDays / 15) + 1;
+        else turnsPassed = Math.floor(diffDays / 30) + 1;
+        return Math.min(turnsPassed, san.duracion_ciclo);
+    }
+
+    function renderSanCards() {
+        const grid = document.getElementById('san-cards-grid');
+        const empty = document.getElementById('empty-state');
+
+        if (state.sanes.length === 0) {
+            grid.innerHTML = '';
+            empty.classList.remove('hidden');
+            return;
+        }
+        empty.classList.add('hidden');
+
+        grid.innerHTML = state.sanes.map((san, idx) => {
+            const expectedPot = calcExpectedPot(san);
+            const currentTurn = getCurrentTurn(san);
+            const progress = san.duracion_ciclo > 0 ? (currentTurn / san.duracion_ciclo * 100) : 0;
+            const receiver = san.participantes.find(p => p.turno_asignado === currentTurn);
+            const receiverName = receiver ? receiver.nombre : 'Sin asignar';
+            const receiverAmount = receiver ? fmtUSD(receiver.monto_objetivo) : '-';
+            const freqLabels = { semanal: 'Semanal', quincenal: 'Quincenal', mensual: 'Mensual' };
+
+            return `
+            <div class="glass-card rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:scale-[1.02] fade-in" style="animation-delay: ${idx * 0.1}s" onclick="navigateTo('san-detail', '${san.id}')">
+                <div class="flex items-start justify-between mb-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-white">${san.nombre}</h3>
+                        <p class="text-xs text-slate-500">${san.descripcion || freqLabels[san.frecuencia]}</p>
+                    </div>
+                    <span class="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-400 text-xs font-semibold">
+                        ${san.duracion_ciclo} turnos
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="bg-slate-800/40 rounded-xl p-3">
+                        <p class="text-[10px] text-slate-500 uppercase tracking-wider">Pote por Turno</p>
+                        <p class="text-base font-bold text-emerald-400">${fmtUSD(expectedPot)}</p>
+                    </div>
+                    <div class="bg-slate-800/40 rounded-xl p-3">
+                        <p class="text-[10px] text-slate-500 uppercase tracking-wider">Participantes</p>
+                        <p class="text-base font-bold text-white">${san.participantes.length} 👥</p>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-400">Turno ${currentTurn} de ${san.duracion_ciclo}</span>
+                        <span class="text-slate-400">${Math.round(progress)}%</span>
+                    </div>
+                    <div class="w-full bg-slate-700/50 rounded-full h-2">
+                        <div class="progress-bar h-2 rounded-full transition-all duration-500" style="width: ${progress}%"></div>
+                    </div>
+                </div>
+
+                ${currentTurn > 0 ? `
+                <div class="flex items-center gap-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                    <span class="text-sm">🎯</span>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[10px] text-amber-400/70 uppercase">Recibe turno ${currentTurn}</p>
+                        <p class="text-sm font-semibold text-amber-300 truncate">${receiverName} → ${receiverAmount}</p>
+                    </div>
+                </div>` : `
+                <div class="p-2.5 bg-slate-800/40 rounded-xl text-center">
+                    <p class="text-xs text-slate-500">Inicia: ${fmtDate(san.fecha_inicio)}</p>
+                </div>`}
+            </div>`;
+        }).join('');
+    }
+
+    // ========================================================
+    // 7. RENDER: SAN DETAIL
+    // ========================================================
+
+    function renderSanDetail(sanId) {
+        const san = state.sanes.find(s => s.id === sanId);
+        if (!san) { navigateTo('dashboard'); return; }
+
+        const container = document.getElementById('san-detail-content');
+        const expectedPot = calcExpectedPot(san);
+        const currentTurn = getCurrentTurn(san);
+        const freqLabels = { semanal: 'Semanal', quincenal: 'Quincenal', mensual: 'Mensual' };
+
+        container.innerHTML = `
+        <div class="fade-in">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <div class="flex items-center gap-3">
+                    <button onclick="navigateTo('dashboard')" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all">
+                        ← Volver
+                    </button>
+                    <div>
+                        <h2 class="text-2xl font-bold text-white">${san.nombre}</h2>
+                        <p class="text-sm text-slate-500">${san.descripcion || ''} · ${freqLabels[san.frecuencia]} · ${san.duracion_ciclo} turnos</p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="openEditSan('${san.id}')" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-xl text-sm text-slate-300 transition-all">
+                        ⚙️ Editar
+                    </button>
+                    <button onclick="openAddParticipant('${san.id}')" class="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-sm text-white font-semibold shadow-lg transition-all active:scale-95">
+                        + Agregar Participante
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="glass-card rounded-xl p-4 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20">
+                    <p class="text-[10px] text-slate-500 uppercase tracking-wider">Pote por Turno</p>
+                    <p class="text-xl font-bold text-emerald-400">${fmtUSD(expectedPot)}</p>
+                </div>
+                <div class="glass-card rounded-xl p-4 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20">
+                    <p class="text-[10px] text-slate-500 uppercase tracking-wider">Turno Actual</p>
+                    <p class="text-xl font-bold text-indigo-400">${currentTurn} / ${san.duracion_ciclo}</p>
+                </div>
+                <div class="glass-card rounded-xl p-4 bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+                    <p class="text-[10px] text-slate-500 uppercase tracking-wider">Participantes</p>
+                    <p class="text-xl font-bold text-amber-400">${san.participantes.length}</p>
+                </div>
+                <div class="glass-card rounded-xl p-4 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20">
+                    <p class="text-[10px] text-slate-500 uppercase tracking-wider">Inicio</p>
+                    <p class="text-lg font-bold text-cyan-400">${fmtDate(san.fecha_inicio)}</p>
+                </div>
+            </div>
+
+            <div class="flex gap-2 mb-6 bg-slate-800/50 rounded-xl p-1 overflow-x-auto">
+                <button onclick="switchTab('participants', '${san.id}')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all" data-tab="participants">
+                    👥 Participantes
+                </button>
+                <button onclick="switchTab('turns', '${san.id}')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all text-slate-400" data-tab="turns">
+                    📅 Turnos / Fechas
+                </button>
+                <button onclick="switchTab('payments', '${san.id}')" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all text-slate-400" data-tab="payments">
+                    💳 Pagos
+                </button>
+            </div>
+
+            <div id="tab-content"></div>
+        </div>`;
+
+        switchTab('participants', san.id);
+    }
+
+    function switchTab(tab, sanId) {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            if (btn.dataset.tab === tab) {
+                btn.classList.add('tab-active');
+                btn.classList.remove('text-slate-400');
+            } else {
+                btn.classList.remove('tab-active');
+                btn.classList.add('text-slate-400');
+            }
+        });
+
+        const san = state.sanes.find(s => s.id === sanId);
+        const content = document.getElementById('tab-content');
+
+        if (tab === 'participants') renderParticipantsTab(san, content);
+        else if (tab === 'turns') renderTurnsTab(san, content);
+        else if (tab === 'payments') renderPaymentsTab(san, content);
+    }
+
+    function renderParticipantsTab(san, container) {
+        const maxMonto = Math.max(...san.participantes.map(p => p.monto_objetivo), 0);
+
+        if (san.participantes.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-16 fade-in">
+                    <div class="text-5xl mb-4">👥</div>
+                    <h3 class="text-lg font-semibold text-slate-400 mb-2">Sin participantes aún</h3>
+                    <p class="text-slate-500 mb-4">Agrega el primer participante para comenzar</p>
+                    <button onclick="openAddParticipant('${san.id}')" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-semibold transition-all">
+                        + Agregar Participante
+                    </button>
+                </div>`;
+            return;
+        }
+
+        const sorted = [...san.participantes].sort((a, b) => b.monto_objetivo - a.monto_objetivo);
+
+        container.innerHTML = `
+        <div class="space-y-3 fade-in">
+            ${sorted.map((p, idx) => {
+                const tier = getTierClass(p.monto_objetivo, maxMonto);
+                const tierEmoji = getTierLabel(p.monto_objetivo, maxMonto);
+                const barWidth = maxMonto > 0 ? (p.monto_objetivo / maxMonto * 100) : 0;
+                const totalPaid = san.pagos
+                    .filter(pay => pay.participante_id === p.id && (pay.estado === 'paid' || pay.estado === 'partial'))
+                    .reduce((s, pay) => s + pay.monto_usd, 0);
+                const totalOwed = p.monto_objetivo;
+                const paidPercent = totalOwed > 0 ? Math.min(100, (totalPaid / totalOwed) * 100) : 0;
+
+                return `
+                <div class="glass-card rounded-xl p-4 slide-in" style="animation-delay: ${idx * 0.05}s">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl ${tier} flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                                ${p.nombre.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h4 class="font-semibold text-white">${p.nombre}</h4>
+                                    <span class="text-sm">${tierEmoji}</span>
+                                </div>
+                                <p class="text-xs text-slate-500">${p.telefono || 'Sin teléfono'} · Turno #${p.turno_asignado}</p>
+                            </div>
+                        </div>
+                        <button onclick="deleteParticipant('${san.id}', '${p.id}')" class="text-slate-600 hover:text-red-400 transition-colors text-lg" title="Eliminar">🗑️</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div class="bg-slate-800/40 rounded-lg p-2.5">
+                            <p class="text-[10px] text-slate-500 uppercase">Participa por</p>
+                            <p class="text-base font-bold text-white">${fmtUSD(p.monto_objetivo)}</p>
+                        </div>
+                        <div class="bg-slate-800/40 rounded-lg p-2.5">
+                            <p class="text-[10px] text-slate-500 uppercase">Cuota ${san.frecuencia}</p>
+                            <p class="text-base font-bold text-indigo-400">${fmtUSD(p.cuota_calculada)}</p>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div class="w-full bg-slate-700/30 rounded-full h-1.5 mb-1">
+                            <div class="${tier} h-1.5 rounded-full transition-all" style="width: ${barWidth}%"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px]">
+                            <span class="text-slate-500">Aporte total: ${paidPercent.toFixed(0)}% pagado</span>
+                            <span class="text-slate-500">${fmtUSD(totalPaid)} / ${fmtUSD(totalOwed)}</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('')}
+        </div>`;
+    }
+
+    function renderTurnsTab(san, container) {
+        const currentTurn = getCurrentTurn(san);
+        const expectedPot = calcExpectedPot(san);
+        let turnsHTML = '';
+        
+        for (let t = 1; t <= san.duracion_ciclo; t++) {
+            const turnDate = calcTurnDate(san, t);
+            const receiver = san.participantes.find(p => p.turno_asignado === t);
+            const actualPot = calcActualPot(san, t);
+            const potPercent = expectedPot > 0 ? Math.min(100, (actualPot / expectedPot) * 100) : 0;
+            const isPast = t < currentTurn;
+            const isCurrent = t === currentTurn;
+            const isFuture = t > currentTurn;
+
+            let statusClass = 'border-slate-700/40';
+            let statusBadge = '';
+            if (isCurrent) {
+                statusClass = 'border-indigo-500/50 ring-1 ring-indigo-500/20';
+                statusBadge = '<span class="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-400 text-[10px] font-bold uppercase">Activo</span>';
+            } else if (isPast) {
+                const fullyPaid = potPercent >= 99;
+                statusClass = fullyPaid ? 'border-emerald-500/30' : 'border-amber-500/30';
+                statusBadge = fullyPaid
+                    ? '<span class="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">✓ Completo</span>'
+                    : '<span class="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 text-[10px] font-bold">Incompleto</span>';
+            }
+
+            turnsHTML += `
+            <div class="glass-card rounded-xl p-4 ${statusClass} transition-all hover:scale-[1.01] cursor-pointer ${isFuture ? 'opacity-60' : ''}"
+                 onclick="openTurnDetail('${san.id}', ${t})">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg ${isCurrent ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-slate-400'} flex items-center justify-center text-sm font-bold">
+                            ${t}
+                        </span>
+                        <div>
+                            <p class="text-sm font-semibold text-white">${fmtDate(turnDate)}</p>
+                            <p class="text-xs text-slate-500">
+                                ${receiver ? `🎯 ${receiver.nombre} recibe ${fmtUSD(receiver.monto_objetivo)}` : '⚠️ Sin receptor asignado'}
+                            </p>
+                        </div>
+                    </div>
+                    ${statusBadge}
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex-1">
+                        <div class="w-full bg-slate-700/30 rounded-full h-2">
+                            <div class="h-2 rounded-full transition-all ${potPercent >= 99 ? 'bg-emerald-500' : potPercent > 0 ? 'bg-amber-500' : 'bg-slate-600'}" style="width: ${potPercent}%"></div>
+                        </div>
+                    </div>
+                    <span class="text-xs font-semibold ${potPercent >= 99 ? 'text-emerald-400' : 'text-slate-400'}">
+                        ${fmtUSD(actualPot)} / ${fmtUSD(expectedPot)}
+                    </span>
+                </div>
+            </div>`;
+        }
+
+        container.innerHTML = `<div class="space-y-3 fade-in">${turnsHTML}</div>`;
+    }
+
+    function openTurnDetail(sanId, turnNumber) {
+        const san = state.sanes.find(s => s.id === sanId);
+        if (!san) return;
+
+        const expectedPot = calcExpectedPot(san);
+        const actualPot = calcActualPot(san, turnNumber);
+        const turnDate = calcTurnDate(san, turnNumber);
+        const receiver = san.participantes.find(p => p.turno_asignado === turnNumber);
+
+        document.getElementById('turn-detail-title').textContent = `Turno #${turnNumber} - ${fmtDate(turnDate)}`;
+
+        let content = `
+        <div class="mb-5 p-4 rounded-xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20">
+            <div class="grid grid-cols-3 gap-4 text-center">
+                <div>
+                    <p class="text-[10px] text-slate-500 uppercase">Esperado</p>
+                    <p class="text-lg font-bold text-white">${fmtUSD(expectedPot)}</p>
+                </div>
+                <div>
+                    <p class="text-[10px] text-slate-500 uppercase">Recaudado</p>
+                    <p class="text-lg font-bold text-emerald-400">${fmtUSD(actualPot)}</p>
+                </div>
+                <div>
+                    <p class="text-[10px] text-slate-500 uppercase">Faltante</p>
+                    <p class="text-lg font-bold text-red-400">${fmtUSD(Math.max(0, expectedPot - actualPot))}</p>
+                </div>
+            </div>
+            ${receiver ? `<div class="mt-3 pt-3 border-t border-indigo-500/20 text-center">
+                <p class="text-xs text-slate-400">🎯 Recibe: <span class="text-white font-semibold">${receiver.nombre}</span> → <span class="text-emerald-400 font-bold">${fmtUSD(receiver.monto_objetivo)}</span></p>
+            </div>` : ''}
+        </div>
+        <div class="flex justify-between items-center mb-3">
+            <h4 class="text-sm font-semibold text-slate-400">Estado de Pagos</h4>
+            <button onclick="exportTurnWhatsapp('${sanId}', ${turnNumber})" class="px-3 py-1.5 bg-green-600/20 border border-green-500/30 hover:bg-green-600/40 rounded-lg text-green-400 text-xs font-semibold transition-all">
+                📱 WhatsApp
+            </button>
+        </div>
+        <div class="space-y-2">`;
+
+        san.participantes.forEach(p => {
+            const payment = san.pagos.find(pay => pay.participante_id === p.id && pay.turno === turnNumber);
+            let statusBadge, statusText;
+
+            if (payment) {
+                if (payment.estado === 'paid') {
+                    statusBadge = 'status-paid';
+                    statusText = `✅ Pagó ${fmtUSD(payment.monto_usd)}`;
+                } else if (payment.estado === 'partial') {
+                    statusBadge = 'status-partial';
+                    statusText = `⚠️ Parcial ${fmtUSD(payment.monto_usd)}`;
+                } else {
+                    statusBadge = 'status-pending';
+                    statusText = `❌ Pendiente`;
+                }
+            } else {
+                statusBadge = 'status-pending';
+                statusText = '❌ Sin registro';
+            }
+
+            content += `
+            <div class="flex items-center justify-between p-3 bg-slate-800/40 rounded-xl">
+                <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center text-white text-xs font-bold">
+                        ${p.nombre.charAt(0)}
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-sm font-semibold text-white truncate">${p.nombre}</p>
+                        <p class="text-xs text-slate-500">Cuota: ${fmtUSD(p.cuota_calculada)}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="px-2.5 py-1 rounded-lg text-xs font-semibold ${statusBadge}">${statusText}</span>
+                    <button onclick="closeModal('modal-turn-detail'); openPaymentForm('${san.id}', '${p.id}', ${turnNumber})" class="p-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 text-xs transition-all" title="Registrar pago">
+                        💳
+                    </button>
+                </div>
+            </div>`;
+        });
+
+        content += '</div>';
+        document.getElementById('turn-detail-content').innerHTML = content;
+        openModal('modal-turn-detail');
+    }
+
+    function renderPaymentsTab(san, container) {
+        const payments = [...san.pagos].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+        if (payments.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-16 fade-in">
+                    <div class="text-5xl mb-4">💳</div>
+                    <h3 class="text-lg font-semibold text-slate-400 mb-2">Sin pagos registrados</h3>
+                    <p class="text-slate-500">Los pagos aparecerán aquí al registrarlos desde los turnos</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = `
+        <div class="overflow-x-auto fade-in">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs text-slate-500 uppercase border-b border-slate-700/50">
+                        <th class="pb-3 pr-4">Participante</th>
+                        <th class="pb-3 pr-4">Turno</th>
+                        <th class="pb-3 pr-4">Monto $</th>
+                        <th class="pb-3 pr-4">Tasa / VES</th>
+                        <th class="pb-3 pr-4">Referencia</th>
+                        <th class="pb-3 pr-4">Fecha</th>
+                        <th class="pb-3">Estado</th>
+                        <th class="pb-3"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/30">
+                    ${payments.map(pay => {
+                        const participant = san.participantes.find(p => p.id === pay.participante_id);
+                        const pName = participant ? participant.nombre : 'Eliminado';
+                        const statusMap = {
+                            paid: '<span class="status-paid px-2 py-0.5 rounded-md text-xs font-semibold">Pagado</span>',
+                            partial: '<span class="status-partial px-2 py-0.5 rounded-md text-xs font-semibold">Parcial</span>',
+                            pending: '<span class="status-pending px-2 py-0.5 rounded-md text-xs font-semibold">Pendiente</span>'
+                        };
+                        return `
+                        <tr class="hover:bg-slate-800/30 transition-colors">
+                            <td class="py-3 pr-4 font-medium text-white">${pName}</td>
+                            <td class="py-3 pr-4 text-slate-400">#${pay.turno}</td>
+                            <td class="py-3 pr-4 font-semibold text-emerald-400">${fmtUSD(pay.monto_usd)}</td>
+                            <td class="py-3 pr-4 text-slate-400 text-xs">${pay.tasa_bcv ? `${pay.tasa_bcv} / ${fmtVES(pay.monto_ves)}` : '-'}</td>
+                            <td class="py-3 pr-4 text-slate-500 text-xs max-w-[120px] truncate">${pay.referencia || '-'}</td>
+                            <td class="py-3 pr-4 text-slate-400">${fmtDate(pay.fecha)}</td>
+                            <td class="py-3">${statusMap[pay.estado] || ''}</td>
+                            <td class="py-3">
+                                <button onclick="deletePayment('${san.id}', '${pay.id}')" class="text-slate-600 hover:text-red-400 transition-colors text-xs" title="Eliminar pago">🗑️</button>
+                            </td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>`;
+    }
+
+    // ========================================================
+    // 8. FORM HANDLERS
+    // ========================================================
+
+    function handleCreateSan(e) {
+        e.preventDefault();
+        const san = {
+            id: generateId(),
+            nombre: document.getElementById('san-name').value.trim(),
+            descripcion: document.getElementById('san-desc').value.trim(),
+            duracion_ciclo: parseInt(document.getElementById('san-duration').value),
+            frecuencia: document.getElementById('san-frequency').value,
+            fecha_inicio: document.getElementById('san-start').value,
+            fecha_creacion: new Date().toISOString(),
+            participantes: [],
+            pagos: []
+        };
+        state.sanes.push(san);
+        saveState();
+        closeModal('modal-create-san');
+        e.target.reset();
+        renderDashboard();
+        showToast(`San "${san.nombre}" creado exitosamente`);
+    }
+
+    function openAddParticipant(sanId) {
+        const san = state.sanes.find(s => s.id === sanId);
+        if (!san) return;
+
+        document.getElementById('participant-san-id').value = sanId;
+        document.getElementById('part-name').value = '';
+        document.getElementById('part-phone').value = '';
+        document.getElementById('part-total').value = '';
+        document.getElementById('quota-preview').classList.add('hidden');
+
+        const turnSelect = document.getElementById('part-turn');
+        turnSelect.innerHTML = '';
+        for (let t = 1; t <= san.duracion_ciclo; t++) {
+            const taken = san.participantes.find(p => p.turno_asignado === t);
+            const opt = document.createElement('option');
+            opt.value = t;
+            opt.textContent = taken ? `Turno ${t} (${taken.nombre})` : `Turno ${t} - Disponible`;
+            if (taken) opt.style.color = '#94a3b8';
+            turnSelect.appendChild(opt);
+        }
+
+        const totalInput = document.getElementById('part-total');
+        totalInput.oninput = function() {
+            const val = parseFloat(this.value);
+            const preview = document.getElementById('quota-preview');
+            if (val > 0) {
+                const quota = val / san.duracion_ciclo;
+                document.getElementById('quota-calc-display').textContent = fmtUSD(quota);
+                document.getElementById('quota-calc-detail').textContent = `${fmtUSD(val)} ÷ ${san.duracion_ciclo} turnos = ${fmtUSD(quota)} por turno`;
+                preview.classList.remove('hidden');
+            } else {
+                preview.classList.add('hidden');
+            }
+        };
+
+        openModal('modal-add-participant');
+    }
+
+    function handleAddParticipant(e) {
+        e.preventDefault();
+        const sanId = document.getElementById('participant-san-id').value;
+        const san = state.sanes.find(s => s.id === sanId);
+        if (!san) return;
+
+        const montoTotal = parseFloat(document.getElementById('part-total').value);
+        const cuota = montoTotal / san.duracion_ciclo;
+
+        const participant = {
+            id: generateId(),
+            nombre: document.getElementById('part-name').value.trim(),
+            telefono: document.getElementById('part-phone').value.trim(),
+            monto_objetivo: montoTotal,
+            cuota_calculada: Math.round(cuota * 100) / 100,
+            turno_asignado: parseInt(document.getElementById('part-turn').value)
+        };
+
+        san.participantes.push(participant);
+        saveState();
+        closeModal('modal-add-participant');
+        renderSanDetail(sanId);
+        showToast(`${participant.nombre} agregado · Cuota: ${fmtUSD(participant.cuota_calculada)}`);
+    }
+
+    function openPaymentForm(sanId, participantId, turn) {
+        const san = state.sanes.find(s => s.id === sanId);
+        const participant = san?.participantes.find(p => p.id === participantId);
+        if (!san || !participant) return;
+
+        document.getElementById('pay-san-id').value = sanId;
+        document.getElementById('pay-participant-id').value = participantId;
+        document.getElementById('pay-turn').value = turn;
+        document.getElementById('pay-person-name').textContent = participant.nombre;
+        document.getElementById('pay-expected-quota').textContent = fmtUSD(participant.cuota_calculada);
+        document.getElementById('pay-turn-display').textContent = `#${turn}`;
+        document.getElementById('pay-amount').value = participant.cuota_calculada;
+        document.getElementById('pay-rate').value = '';
+        document.getElementById('pay-ves').value = '';
+        document.getElementById('pay-ref').value = '';
+        document.getElementById('pay-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('pay-status').value = 'paid';
+
+        openModal('modal-register-payment');
+    }
+
+    function calcVES() {
+        const amount = parseFloat(document.getElementById('pay-amount').value) || 0;
+        const rate = parseFloat(document.getElementById('pay-rate').value) || 0;
+        if (amount > 0 && rate > 0) {
+            document.getElementById('pay-ves').value = fmtVES(amount * rate);
+        } else {
+            document.getElementById('pay-ves').value = '';
+        }
+    }
+
+    function handleRegisterPayment(e) {
+        e.preventDefault();
+        const sanId = document.getElementById('pay-san-id').value;
+        const san = state.sanes.find(s => s.id === sanId);
+        if (!san) return;
+
+        const participantId = document.getElementById('pay-participant-id').value;
+        const turn = parseInt(document.getElementById('pay-turn').value);
+        const amount = parseFloat(document.getElementById('pay-amount').value);
+        const rate = parseFloat(document.getElementById('pay-rate').value) || null;
+
+        san.pagos = san.pagos.filter(p => !(p.participante_id === participantId && p.turno === turn));
+
+        const payment = {
+            id: generateId(),
+            participante_id: participantId,
+            turno: turn,
+            monto_usd: amount,
+            tasa_bcv: rate,
+            monto_ves: rate ? Math.round(amount * rate * 100) / 100 : null,
+            referencia: document.getElementById('pay-ref').value.trim(),
+            fecha: document.getElementById('pay-date').value,
+            estado: document.getElementById('pay-status').value
+        };
+
+        san.pagos.push(payment);
+        saveState();
+        closeModal('modal-register-payment');
+
+        const participant = san.participantes.find(p => p.id === participantId);
+        showToast(`Pago de ${participant?.nombre || 'participante'} registrado (${fmtUSD(amount)})`);
+
+        if (state.currentSanId === sanId) {
+            renderSanDetail(sanId);
+        }
+    }
+
+    function deletePayment(sanId, paymentId) {
+        if (!confirm('¿Eliminar este registro de pago?')) return;
+        const san = state.sanes.find(s => s.id === sanId);
+        if (!san) return;
+        san.pagos = san.pagos.filter(p => p.id !== paymentId);
+        saveState();
+        renderSanDetail(sanId);
+        showToast('Pago eliminado', 'info');
+    }
+
+    function deleteParticipant(sanId, participantId) {
+        if (!confirm('¿Eliminar este participante y todos sus pagos?')) return;
+        const san = state.sanes.find(s => s.id === sanId);
+        if (!san) return;
+        san.participantes = san.participantes.filter(p => p.id !== participantId);
+        san.pagos = san.pagos.filter(p => p.participante_id !== participantId);
+        saveState();
+        renderSanDetail(sanId);
+        showToast('Participante eliminado', 'info');
+    }
+
+    function openEditSan(sanId) {
+        const san = state.sanes.find(s => s.id === sanId);
+        if (!san) return;
+        document.getElementById('edit-san-id').value = sanId;
+        document.getElementById('edit-san-name').value = san.nombre;
+        document.getElementById('edit-san-desc').value = san.descripcion;
+        document.getElementById('edit-san-frequency').value = san.frecuencia;
+        openModal('modal-edit-san');
+    }
+
+    function handleEditSan(e) {
+        e.preventDefault();
+        const sanId = document.getElementById('edit-san-id').value;
+        const san = state.sanes.find(s => s.id === sanId);
+        if (!san) return;
+        san.nombre = document.getElementById('edit-san-name').value.trim();
+        san.descripcion = document.getElementById('edit-san-desc').value.trim();
+        san.frecuencia = document.getElementById('edit-san-frequency').value;
+        saveState();
+        closeModal('modal-edit-san');
+        renderSanDetail(sanId);
+        showToast('San actualizado');
+    }
+
+    function handleDeleteSan() {
+        const sanId = document.getElementById('edit-san-id').value;
+        const san = state.sanes.find(s => s.id === sanId);
+        if (!san) return;
+        if (!confirm(`¿Eliminar "${san.nombre}" y todos sus datos? Esta acción no se puede deshacer.`)) return;
+        state.sanes = state.sanes.filter(s => s.id !== sanId);
+        saveState();
+        closeModal('modal-edit-san');
+        navigateTo('dashboard');
+        showToast(`San "${san.nombre}" eliminado`, 'warning');
+    }
+
+    // ========================================================
+    // 9. DEBTORS REPORT
+    // ========================================================
+
+    function populateFilters() {
+        const debtorFilter = document.getElementById('debtor-san-filter');
+        const historyFilter = document.getElementById('history-san-filter');
+
+        [debtorFilter, historyFilter].forEach(select => {
+            if (!select) return;
+            const current = select.value;
+            select.innerHTML = '<option value="all">Todos los Sanes</option>';
+            state.sanes.forEach(san => {
+                select.innerHTML += `<option value="${san.id}">${san.nombre}</option>`;
+            });
+            select.value = current || 'all';
+        });
+    }
+
+    function renderDebtors() {
+        const container = document.getElementById('debtors-list');
+        const filterSanId = document.getElementById('debtor-san-filter').value;
+        const filteredSanes = filterSanId === 'all' ? state.sanes : state.sanes.filter(s => s.id === filterSanId);
+
+        let debtors = [];
+
+        filteredSanes.forEach(san => {
+            const currentTurn = getCurrentTurn(san);
+            san.participantes.forEach(p => {
+                const totalExpected = p.cuota_calculada * currentTurn;
+                const totalPaid = san.pagos
+                    .filter(pay => pay.participante_id === p.id && pay.turno <= currentTurn && (pay.estado === 'paid' || pay.estado === 'partial'))
+                    .reduce((s, pay) => s + pay.monto_usd, 0);
+                const debt = totalExpected - totalPaid;
+
+                if (debt > 0.01) {
+                    let unpaidTurns = [];
+                    for (let t = 1; t <= currentTurn; t++) {
+                        const turnPayments = san.pagos.filter(pay => pay.participante_id === p.id && pay.turno === t);
+                        const turnPaid = turnPayments
+                            .filter(pay => pay.estado === 'paid' || pay.estado === 'partial')
+                            .reduce((s, pay) => s + pay.monto_usd, 0);
+                        if (turnPaid < p.cuota_calculada - 0.01) {
+                            unpaidTurns.push(t);
+                        }
+                    }
+                    debtors.push({
+                        san: san.nombre,
+                        sanId: san.id,
+                        participant: p,
+                        totalExpected,
+                        totalPaid,
+                        debt: Math.round(debt * 100) / 100,
+                        unpaidTurns,
+                        currentTurn
+                    });
+                }
+            });
+        });
+
+        debtors.sort((a, b) => b.debt - a.debt);
+
+        if (debtors.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-16 fade-in">
+                    <div class="text-5xl mb-4">🎉</div>
+                    <h3 class="text-lg font-semibold text-emerald-400 mb-2">¡Sin deudores!</h3>
+                    <p class="text-slate-500">Todos los pagos están al día</p>
+                </div>`;
+            return;
+        }
+
+        const totalDebt = debtors.reduce((s, d) => s + d.debt, 0);
+
+        container.innerHTML = `
+        <div class="glass-card rounded-xl p-4 mb-5 bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 fade-in">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-slate-400">Deuda Total Acumulada</p>
+                    <p class="text-2xl font-bold text-red-400">${fmtUSD(totalDebt)}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm text-slate-400">Personas con deuda</p>
+                    <p class="text-2xl font-bold text-white">${debtors.length}</p>
+                </div>
+            </div>
+        </div>
+        <div class="space-y-3 fade-in">
+            ${debtors.map((d, idx) => `
+            <div class="glass-card rounded-xl p-4 border-l-4 border-l-red-500/70 slide-in" style="animation-delay: ${idx * 0.05}s">
+                <div class="flex items-start justify-between mb-2">
+                    <div>
+                        <h4 class="font-semibold text-white">${d.participant.nombre}</h4>
+                        <p class="text-xs text-slate-500">${d.san} · Turno #${d.participant.turno_asignado} · ${d.participant.telefono || 'Sin tel.'}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-lg font-bold text-red-400">${fmtUSD(d.debt)}</p>
+                        <p class="text-[10px] text-slate-500">de deuda</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-center bg-slate-800/40 rounded-lg p-2 mb-2">
+                    <div>
+                        <p class="text-[10px] text-slate-500">Cuota</p>
+                        <p class="text-sm font-semibold text-indigo-400">${fmtUSD(d.participant.cuota_calculada)}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-slate-500">Pagado</p>
+                        <p class="text-sm font-semibold text-emerald-400">${fmtUSD(d.totalPaid)}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-slate-500">Esperado</p>
+                        <p class="text-sm font-semibold text-white">${fmtUSD(d.totalExpected)}</p>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-500">Turnos sin pagar: ${d.unpaidTurns.map(t => '#'+t).join(', ')}</p>
+            </div>`).join('')}
+        </div>`;
+    }
+
+    // ========================================================
+    // 10. HISTORY VIEW
+    // ========================================================
+
+    function renderHistory() {
+        const container = document.getElementById('history-table-container');
+        const filterSanId = document.getElementById('history-san-filter').value;
+        const filterStatus = document.getElementById('history-status-filter').value;
+
+        let allPayments = [];
+        const filteredSanes = filterSanId === 'all' ? state.sanes : state.sanes.filter(s => s.id === filterSanId);
+
+        filteredSanes.forEach(san => {
+            san.pagos.forEach(pay => {
+                const participant = san.participantes.find(p => p.id === pay.participante_id);
+                allPayments.push({
+                    ...pay,
+                    sanName: san.nombre,
+                    sanId: san.id,
+                    participantName: participant?.nombre || 'Eliminado',
+                    cuotaEsperada: participant?.cuota_calculada || 0
+                });
+            });
+        });
+
+        if (filterStatus !== 'all') {
+            allPayments = allPayments.filter(p => p.estado === filterStatus);
+        }
+
+        allPayments.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+        if (allPayments.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-16 fade-in">
+                    <div class="text-5xl mb-4">📋</div>
+                    <h3 class="text-lg font-semibold text-slate-400">Sin registros de pagos</h3>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = `
+        <div class="overflow-x-auto fade-in">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-xs text-slate-500 uppercase border-b border-slate-700/50">
+                        <th class="pb-3 pr-4">San</th>
+                        <th class="pb-3 pr-4">Participante</th>
+                        <th class="pb-3 pr-4">Turno</th>
+                        <th class="pb-3 pr-4">Cuota</th>
+                        <th class="pb-3 pr-4">Pagó</th>
+                        <th class="pb-3 pr-4">Tasa / VES</th>
+                        <th class="pb-3 pr-4">Ref.</th>
+                        <th class="pb-3 pr-4">Fecha</th>
+                        <th class="pb-3">Estado</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/30">
+                    ${allPayments.map(pay => {
+                        const statusMap = {
+                            paid: '<span class="status-paid px-2 py-0.5 rounded-md text-xs font-semibold">Pagado</span>',
+                            partial: '<span class="status-partial px-2 py-0.5 rounded-md text-xs font-semibold">Parcial</span>',
+                            pending: '<span class="status-pending px-2 py-0.5 rounded-md text-xs font-semibold">Pendiente</span>'
+                        };
+                        return `
+                        <tr class="hover:bg-slate-800/30 transition-colors">
+                            <td class="py-3 pr-4 text-indigo-400 text-xs font-medium">${pay.sanName}</td>
+                            <td class="py-3 pr-4 font-medium text-white">${pay.participantName}</td>
+                            <td class="py-3 pr-4 text-slate-400">#${pay.turno}</td>
+                            <td class="py-3 pr-4 text-slate-400">${fmtUSD(pay.cuotaEsperada)}</td>
+                            <td class="py-3 pr-4 font-semibold text-emerald-400">${fmtUSD(pay.monto_usd)}</td>
+                            <td class="py-3 pr-4 text-slate-500 text-xs">${pay.tasa_bcv ? `${pay.tasa_bcv} / ${fmtVES(pay.monto_ves)}` : '-'}</td>
+                            <td class="py-3 pr-4 text-slate-500 text-xs max-w-[100px] truncate">${pay.referencia || '-'}</td>
+                            <td class="py-3 pr-4 text-slate-400">${fmtDate(pay.fecha)}</td>
+                            <td class="py-3">${statusMap[pay.estado] || ''}</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>`;
+    }
+
+    // ========================================================
+    // 11. WHATSAPP EXPORT
+    // ========================================================
+
+    function exportTurnWhatsapp(sanId, turnNumber) {
+        const san = state.sanes.find(s => s.id === sanId);
+        if (!san) return;
+
+        const expectedPot = calcExpectedPot(san);
+        const actualPot = calcActualPot(san, turnNumber);
+        const turnDate = calcTurnDate(san, turnNumber);
+        const receiver = san.participantes.find(p => p.turno_asignado === turnNumber);
+
+        let text = `💰 *${san.nombre}*\n`;
+        text += `📅 *Resumen Fecha #${turnNumber}* (${fmtDate(turnDate)})\n`;
+        text += `━━━━━━━━━━━━━━━━━━\n`;
+        if (receiver) {
+            text += `🎯 *Recibe:* ${receiver.nombre} → ${fmtUSD(receiver.monto_objetivo)}\n`;
+        }
+        text += `💵 Pote esperado: ${fmtUSD(expectedPot)}\n`;
+        text += `✅ Recaudado: ${fmtUSD(actualPot)}\n`;
+        if (expectedPot - actualPot > 0.01) {
+            text += `❌ Faltante: ${fmtUSD(expectedPot - actualPot)}\n`;
+        }
+        text += `━━━━━━━━━━━━━━━━━━\n\n`;
+
+        san.participantes.forEach(p => {
+            const payment = san.pagos.find(pay => pay.participante_id === p.id && pay.turno === turnNumber);
+            if (payment && payment.estado === 'paid') {
+                text += `✅ ${p.nombre} pagó ${fmtUSD(payment.monto_usd)} _(Listo)_\n`;
+            } else if (payment && payment.estado === 'partial') {
+                text += `⚠️ ${p.nombre} pagó ${fmtUSD(payment.monto_usd)} de ${fmtUSD(p.cuota_calculada)} _(Parcial)_\n`;
+            } else {
+                text += `❌ ${p.nombre} debe ${fmtUSD(p.cuota_calculada)} _(Pendiente)_\n`;
+            }
+        });
+
+        text += `\n_Generado por San Maestro_`;
+
+        document.getElementById('whatsapp-text').textContent = text;
+        closeModal('modal-turn-detail');
+        openModal('modal-whatsapp');
+
+        window._whatsappText = text;
+    }
+
+    function copyWhatsappText() {
+        const text = window._whatsappText || document.getElementById('whatsapp-text').textContent;
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Texto copiado al portapapeles', 'success');
+        }).catch(() => {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+            showToast('Texto copiado', 'success');
+        });
+    }
+
+    function sendWhatsapp() {
+        const text = window._whatsappText || document.getElementById('whatsapp-text').textContent;
+        const encoded = encodeURIComponent(text);
+        window.open(`https://wa.me/?text=${encoded}`, '_blank');
+    }
+
+    // ========================================================
+    // 12. BACKUP & RESTORE (IMPORT/EXPORT)
+    // ========================================================
+
+    function exportData() {
+        const dataStr = JSON.stringify(state.sanes, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        const fecha = new Date().toISOString().split('T')[0];
+        a.href = url;
+        a.download = `Respaldo_SanMaestro_${fecha}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showToast('Archivo de respaldo descargado', 'success');
+    }
+
+    function importData(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedSanes = JSON.parse(e.target.result);
+                if (!Array.isArray(importedSanes)) throw new Error("Formato inválido");
+
+                if (confirm('⚠️ ATENCIÓN: Al cargar este archivo se REEMPLAZARÁN los datos actuales por los del archivo. ¿Deseas continuar?')) {
+                    state.sanes = importedSanes;
+                    saveState();
+                    renderDashboard();
+                    showToast('Datos restaurados exitosamente', 'success');
+                }
+            } catch (error) {
+                console.error(error);
+                showToast('Error al leer el archivo. Asegúrate que sea un respaldo válido.', 'error');
+            }
+            input.value = '';
+        };
+        reader.readAsText(file);
+    }
+
+    // ========================================================
+    // 13. INITIALIZATION
+    // ========================================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('san-start').value = new Date().toISOString().split('T')[0];
+        loadState();
+        navigateTo('dashboard');
+    });
+
+    // ========================================================
+    // 14. PWA INSTALLATION & SERVICE WORKER
+    // ========================================================
+
+    // Registrar Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js')
+            .then(() => console.log('Service Worker registrado'))
+            .catch((err) => console.error('Error SW:', err));
+    }
+
+    // Lógica del Botón de Instalación
+    let deferredPrompt;
+    const installBtn = document.getElementById('btn-install');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installBtn.classList.remove('hidden');
+    });
+
+    installBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response: ${outcome}`);
+        deferredPrompt = null;
+        installBtn.classList.add('hidden');
+    });
+
+    </script>
+</body>
+</html>
